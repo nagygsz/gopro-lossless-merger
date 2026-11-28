@@ -12,16 +12,23 @@ This repository provides one script for GoPro Hero 5 and Hero 7 split MP4 files.
 
 ## Usage
 
+Keep the default behavior to preserve all source videos:
+
 ```bash
-chmod +x merge_gopro.sh mac/mp4_merge-mac-arm64 linux/mp4_merge-linux64
 ./merge_gopro.sh "/path/to/GoPro folder"
 ```
+
+To remove recognized source video files after each sequence has produced a successful, non-empty output, explicitly opt in:
+
+```bash
+./merge_gopro.sh --delete-originals "/path/to/GoPro folder"
+```
+
+With `--delete-originals`, the script refuses to replace an already-existing `_joined.mp4` output. Source files for that sequence are removed only after the new output is successfully created and published. If merging, copying, or publishing fails, source files are kept. Deletion is permanent; make and verify a backup before using this option.
 
 Supported camera filename patterns:
 
 - Hero 5: `GOPR####.MP4` and `GPcc####.MP4`
 - Hero 7: `GXcc####.MP4`
 
-The script orders chunks by chapter, merges multi-part sequences without transcoding, and copies a single-part recording to its corresponding `_joined.mp4` output. Keep Hero 5 and Hero 7 files in separate directories.
-
-Output files are written alongside the source videos. Ensure there is enough free disk space for the merged output.
+The script orders chunks by chapter, merges multi-part sequences without transcoding, and copies a single-part recording to its corresponding `_joined.mp4` output. Keep Hero 5 and Hero 7 files in separate directories. Output files are written alongside the source videos; ensure there is enough free disk space.
