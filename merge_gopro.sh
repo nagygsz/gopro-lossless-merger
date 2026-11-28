@@ -81,8 +81,6 @@ if [ "$DELETE_ORIGINALS" -eq 1 ]; then
   echo "WARNING: --delete-originals is enabled; source files will be removed only after a non-empty output is successfully created."
 fi
 
-# Keep temporary lists and staged outputs on the input filesystem, so publishing
-# a completed output uses a same-filesystem rename.
 WORK_DIR="$(mktemp -d "$INPUT_DIR/.merge_gopro.XXXXXX")"
 trap 'rm -rf -- "$WORK_DIR"' EXIT
 
@@ -125,10 +123,7 @@ for seqfile in "$WORK_DIR"/seq_*; do
     paths+=("$p")
   done < <(cut -f2 -d$'\t' "$sorted")
 
-  if [ "${#paths[@]}" -eq 0 ]; then
-    rm -f -- "$sorted"
-    continue
-  fi
+  [ "${#paths[@]}" -gt 0 ] || continue
 
   if [ "$camera" = hero5 ]; then
     outname="GOPR${seq}_joined.mp4"
@@ -144,10 +139,9 @@ for seqfile in "$WORK_DIR"/seq_*; do
   elif [ "${#paths[@]}" -gt 1 ]; then
     echo "Merging sequence $seq:"
     for p in "${paths[@]}"; do printf '  %s\n' "$p"; done
+    merge_out="$outpath"
     if [ "$DELETE_ORIGINALS" -eq 1 ]; then
       merge_out="$WORK_DIR/$outname"
-    else
-      merge_out="$outpath"
     fi
     if "$MERGER" "${paths[@]}" --out "$merge_out"; then
       if [ -s "$merge_out" ]; then
@@ -161,9 +155,7 @@ for seqfile in "$WORK_DIR"/seq_*; do
         else
           sequence_ok=1
         fi
-        if [ "$sequence_ok" -eq 1 ]; then
-          echo "Created $(basename "$outpath")"
-        fi
+        [ "$sequence_ok" -eq 1 ] && echo "Created $(basename "$outpath")"
       else
         echo "Error: merger reported success but produced no non-empty output for sequence $seq; originals kept." >&2
         failed=1
@@ -174,47 +166,32 @@ for seqfile in "$WORK_DIR"/seq_*; do
       failed=1
     fi
   else
-    echo "Copying single-part sequence to $(basename "$outpath")"
-    if [ "$DELETE_ORIGINALS" -eq 1 ]; then
-      copy_out="$WORK_DIR/$outname"
+    echo "Handling single-part sequence $(basename "${paths[0]}")"
+    if [ -e "$outpath" ]; then
+      echo "Error: output already exists: $outpath" >&2
+      failed=1
     else
-      copy_out="$outpath"
-    fi
-    if cp -p -- "${paths[0]}" "$copy_out"; then
-      if [ -s "$copy_out" ]; then
-        if [ "$DELETE_ORIGINALS" -eq 1 ]; then
-          if mv -- "$copy_out" "$outpath"; then
-            sequence_ok=1
-          else
-            echo "Error publishing copied output for sequence $seq; original kept." >&2
-            failed=1
-          fi
-        else
-          sequence_ok=1
-        fi
+      if mv -- "${paths[0]}" "$outpath"; then
+        echo "Renamed $(basename "${paths[0]}") to $(basename "$outpath")"
+        created=$((created + 1))
+        sequence_ok=1
       else
-        echo "Error: copied output is empty for sequence $seq; original kept." >&2
+        rc=$?
+        echo "Error renaming single-part sequence (exit code $rc)." >&2
         failed=1
       fi
-    else
-      rc=$?
-      echo "Error copying sequence $seq (exit code $rc); original kept." >&2
-      failed=1
     fi
   fi
 
-  if [ "$sequence_ok" -eq 1 ]; then
-    created=$((created + 1))
-    if [ "$DELETE_ORIGINALS" -eq 1 ]; then
-      echo "Removing source file(s) for successfully created $(basename "$outpath")."
-      if ! rm -- "${paths[@]}"; then
-        echo "Error removing one or more source files for sequence $seq." >&2
-        failed=1
-      fi
+  if [ "$sequence_ok" -eq 1 ] && [ "${#paths[@]}" -gt 1 ] && [ "$DELETE_ORIGINALS" -eq 1 ]; then
+    echo "Removing source file(s) for successfully created $(basename "$outpath")."
+    if ! rm -- "${paths[@]}"; then
+      echo "Error removing one or more source files for sequence $seq." >&2
+      failed=1
     fi
   fi
   rm -f -- "$sorted"
 done
 
-echo "Processing complete. Created or copied $created merged video file(s)."
+echo "Processing complete. Created or renamed $created merged video file(s)."
 exit "$failed"

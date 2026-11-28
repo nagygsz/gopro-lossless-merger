@@ -18,6 +18,8 @@ Keep the default behavior to preserve all source videos:
 ./merge_gopro.sh "/path/to/GoPro folder"
 ```
 
+For a single-part sequence, the script uses a same-directory rename instead of copying it. For multi-part sequences, it merges the parts as usual.
+
 To remove recognized source video files after each sequence has produced a successful, non-empty output, explicitly opt in:
 
 ```bash
@@ -31,4 +33,4 @@ Supported camera filename patterns:
 - Hero 5: `GOPR####.MP4` and `GPcc####.MP4`
 - Hero 7: `GXcc####.MP4`
 
-The script orders chunks by chapter, merges multi-part sequences without transcoding, and copies a single-part recording to its corresponding `_joined.mp4` output. Keep Hero 5 and Hero 7 files in separate directories. Output files are written alongside the source videos; ensure there is enough free disk space.
+The script orders chunks by chapter, merges multi-part sequences without transcoding, and renames single-part recordings to their corresponding `_joined.mp4` output. Keep Hero 5 and Hero 7 files in separate directories. Output files are written alongside the source videos; ensure there is enough free disk space.
